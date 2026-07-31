@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Necrosis — Deckbuilding Roguelike</title>
+  <meta name="description" content="Neon Necrosis is a post-apocalyptic deckbuilding roguelike. Slay the Spire mechanics. Darkest Dungeon combat. Hades storytelling. A cyberpunk city consumed by something that won't die. Coming to Steam Early Access." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #06080a;
+      --surface:    #161018;
+      --surface2:   #0e0b10;
+      --border:     #261e2a;
+      --neon:       #ff2d6b;       /* dying infrastructure pink */
+      --neon-dim:   rgba(255,45,107,0.15);
+      --viral:      #c8ff47;       /* bioluminescent amber-green */
+      --viral-dim:  rgba(200,255,71,0.1);
+      --text:       #c4bfb8;
+      --text-dim:   #5a5058;
+      --bone:       #e8e0d4;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 15px;
+      line-height: 1.7;
+      overflow-x: hidden;
+    }
+
+    /* grain */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── HERO ─────────────────────────────────────── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4rem 1.5rem 5rem;
+      z-index: 1;
+      overflow: hidden;
+    }
+
+    /* SVG background canvas */
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    /* grid lines */
+    .grid-line {
+      stroke: rgba(255,45,107,0.12);
+      stroke-width: 0.5;
+      fill: none;
+    }
+
+    /* organic tendrils */
+    .tendril {
+      fill: none;
+      stroke-width: 1.2;
+      stroke-linecap: round;
+      opacity: 0;
+      animation: tendril-grow 3s ease-out forwards;
+    }
+    .tendril-1 { stroke: rgba(200,255,71,0.35); animation-delay: 0.8s; }
+    .tendril-2 { stroke: rgba(200,255,71,0.25); animation-delay: 1.2s; }
+    .tendril-3 { stroke: rgba(200,255,71,0.2);  animation-delay: 1.6s; }
+    .tendril-4 { stroke: rgba(255,45,107,0.2);  animation-delay: 2.0s; }
+    .tendril-5 { stroke: rgba(200,255,71,0.18); animation-delay: 2.3s; }
+
+    @keyframes tendril-grow {
+      0%   { opacity: 0; stroke-dashoffset: 800; }
+      15%  { opacity: 1; }
+      100% { opacity: 1; stroke-dashoffset: 0; }
+    }
+
+    /* radial glow pools */
+    .glow-neon {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(ellipse, rgba(255,45,107,0.07) 0%, transparent 65%);
+      width: 700px;
+      height: 400px;
+      top: 10%;
+      left: -10%;
+      transform: rotate(-15deg);
+    }
+    .glow-viral {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(ellipse, rgba(200,255,71,0.06) 0%, transparent 65%);
+      width: 500px;
+      height: 500px;
+      bottom: 5%;
+      right: -5%;
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+      max-width: 780px;
+    }
+
+    .eyebrow {
+      font-size: 0.65rem;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 1.8rem;
+    }
+
+    /* Split title */
+    .title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(4rem, 14vw, 9.5rem);
+      line-height: 0.92;
+      letter-spacing: 0.03em;
+      margin-bottom: 1.5rem;
+      display: block;
+    }
+
+    .title-neon {
+      display: block;
+      color: var(--neon);
+      text-shadow:
+        0 0 30px rgba(255,45,107,0.5),
+        0 0 80px rgba(255,45,107,0.15);
+    }
+
+    .title-viral {
+      display: block;
+      color: var(--viral);
+      text-shadow:
+        0 0 30px rgba(200,255,71,0.45),
+        0 0 80px rgba(200,255,71,0.12);
+      position: relative;
+    }
+
+    /* drip effect on NECROSIS */
+    .title-viral::after {
+      content: '';
+      position: absolute;
+      top: 85%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 0;
+      background: linear-gradient(to bottom, rgba(200,255,71,0.6), transparent);
+      animation: drip 2s ease-out 1.4s forwards;
+      filter: blur(1px);
+    }
+
+    @keyframes drip {
+      0%   { height: 0; opacity: 1; }
+      70%  { height: 60px; opacity: 0.8; }
+      100% { height: 80px; opacity: 0; }
+    }
+
+    .tagline {
+      font-size: clamp(0.8rem, 1.8vw, 0.95rem);
+      font-weight: 300;
+      color: var(--text);
+      max-width: 500px;
+      margin: 0 auto 0.75rem;
+      line-height: 1.9;
+    }
+
+    .genre-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .tag {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.75rem;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+    .tag-neon  { border-color: rgba(255,45,107,0.3); color: rgba(255,45,107,0.6); }
+    .tag-viral { border-color: rgba(200,255,71,0.3); color: rgba(200,255,71,0.6); }
+
+    .cta-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      display: inline-block;
+      padding: 0.85rem 2.2rem;
+      background: var(--viral);
+      color: #0a1000;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    .btn-primary:hover {
+      background: #d8ff60;
+      box-shadow: 0 0 28px rgba(200,255,71,0.35);
+    }
+
+    .btn-secondary {
+      display: inline-block;
+      padding: 0.85rem 2.2rem;
+      border: 1px solid rgba(255,45,107,0.35);
+      color: rgba(255,45,107,0.8);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 400;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      text-decoration: none;
+      transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
+    }
+    .btn-secondary:hover {
+      border-color: var(--neon);
+      color: var(--neon);
+      box-shadow: 0 0 20px rgba(255,45,107,0.15);
+    }
+
+    .hero-rule {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,45,107,0.3), rgba(200,255,71,0.3), transparent);
+    }
+
+    /* ── PITCH ────────────────────────────────────── */
+    .pitch {
+      position: relative;
+      z-index: 1;
+      padding: 5rem 1.5rem;
+      max-width: 800px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem 4rem;
+      align-items: start;
+    }
+
+    .pitch-headline {
+      grid-column: 1 / -1;
+      text-align: center;
+    }
+
+    .section-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    .pitch-headline h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      color: var(--bone);
+      letter-spacing: 0.04em;
+      line-height: 1;
+    }
+
+    .pitch-block p {
+      font-size: 0.85rem;
+      font-weight: 300;
+      line-height: 1.9;
+      color: var(--text);
+    }
+
+    .pitch-block strong {
+      color: var(--bone);
+      font-weight: 500;
+    }
+
+    .pitch-block .accent-neon { color: var(--neon); }
+    .pitch-block .accent-viral { color: var(--viral); }
+
+    /* ── PILLARS ──────────────────────────────────── */
+    .pillars {
+      position: relative;
+      z-index: 1;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pillars-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem;
+    }
+
+    .pillars-label {
+      font-size: 0.6rem;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-align: center;
+      display: block;
+      margin-bottom: 3rem;
+    }
+
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 0;
+    }
+
+    .pillar {
+      padding: 2rem 1.75rem;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .pillar:last-child { border-right: none; }
+
+    .pillar-accent {
+      width: 28px;
+      height: 2px;
+      margin-bottom: 1.25rem;
+    }
+    .pillar-accent-neon  { background: var(--neon); box-shadow: 0 0 8px rgba(255,45,107,0.5); }
+    .pillar-accent-viral { background: var(--viral); box-shadow: 0 0 8px rgba(200,255,71,0.4); }
+
+    .pillar-ref {
+      font-size: 0.6rem;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.4rem;
+    }
+
+    .pillar h3 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.4rem;
+      letter-spacing: 0.06em;
+      color: var(--bone);
+      margin-bottom: 0.75rem;
+    }
+
+    .pillar p {
+      font-size: 0.78rem;
+      font-weight: 300;
+      color: var(--text-dim);
+      line-height: 1.7;
+    }
+
+    /* ── WORLD ────────────────────────────────────── */
+    .world {
+      position: relative;
+      z-index: 1;
+      padding: 5rem 1.5rem;
+      max-width: 700px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .world h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.2rem, 5vw, 3.8rem);
+      letter-spacing: 0.04em;
+      line-height: 1;
+      margin-bottom: 1.5rem;
+    }
+
+    .world h2 em {
+      font-style: normal;
+      color: var(--neon);
+    }
+
+    .world p {
+      font-size: 0.88rem;
+      font-weight: 300;
+      line-height: 1.95;
+      color: var(--text);
+      margin-bottom: 1rem;
+    }
+
+    .world p:last-of-type { margin-bottom: 0; }
+
+    .world-divider {
+      width: 1px;
+      height: 60px;
+      background: linear-gradient(to bottom, rgba(255,45,107,0.4), rgba(200,255,71,0.4));
+      margin: 2.5rem auto;
+    }
+
+    /* ── COMMUNITY ────────────────────────────────── */
+    .community {
+      position: relative;
+      z-index: 1;
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+      padding: 5rem 1.5rem;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    .community::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 300px;
+      background: radial-gradient(ellipse, rgba(200,255,71,0.05) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .community-inner {
+      position: relative;
+      z-index: 1;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .community h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: clamp(2.2rem, 6vw, 4rem);
+      letter-spacing: 0.04em;
+      color: var(--bone);
+      margin-bottom: 0.75rem;
+    }
+
+    .community p {
+      font-size: 0.85rem;
+      font-weight: 300;
+      color: var(--text);
+      margin-bottom: 2rem;
+      line-height: 1.85;
+    }
+
+    .steam-soon {
+      margin-top: 1.75rem;
+      font-size: 0.62rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+
+    .steam-soon span {
+      color: rgba(255,45,107,0.5);
+    }
+
+    /* ── FOOTER ───────────────────────────────────── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2rem 1.5rem;
+      text-align: center;
+    }
+
+    .social-links {
+      display: flex;
+      justify-content: center;
+      gap: 2.5rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .social-links a {
+      font-size: 0.65rem;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .social-links a:hover { color: var(--viral); }
+
+    .copyright {
+      font-size: 0.62rem;
+      letter-spacing: 0.1em;
+      color: var(--text-dim);
+      opacity: 0.4;
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────── */
+    @media (max-width: 640px) {
+      .pitch { grid-template-columns: 1fr; gap: 2rem; }
+      .pillars-grid { grid-template-columns: 1fr; }
+      .pillar { border-right: none; border-bottom: 1px solid var(--border); }
+      .pillar:last-child { border-bottom: none; }
+      .cta-group { flex-direction: column; }
+      .btn-primary, .btn-secondary { text-align: center; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tendril, .title-viral::after { animation: none; opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HERO ── -->
+<section class="hero">
+
+  <!-- Animated background -->
+  <svg class="hero-bg" viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <!-- Grid lines: dying infrastructure -->
+    <line class="grid-line" x1="0" y1="300" x2="1440" y2="300"/>
+    <line class="grid-line" x1="0" y1="600" x2="1440" y2="600"/>
+    <line class="grid-line" x1="360" y1="0" x2="360" y2="900"/>
+    <line class="grid-line" x1="720" y1="0" x2="720" y2="900"/>
+    <line class="grid-line" x1="1080" y1="0" x2="1080" y2="900"/>
+
+    <!-- Organic tendrils growing over the grid -->
+    <!-- Top-left tendril cluster -->
+    <path class="tendril tendril-1"
+      stroke-dasharray="800" stroke-dashoffset="800"
+      d="M 0 180 C 60 190, 110 220, 160 240 C 200 255, 230 280, 260 310 C 285 335, 290 370, 310 390"/>
+    <path class="tendril tendril-2"
+      stroke-dasharray="600" stroke-dashoffset="600"
+      d="M 0 220 C 80 225, 140 250, 180 275 C 210 295, 220 330, 240 355"/>
+    <path class="tendril tendril-3"
+      stroke-dasharray="500" stroke-dashoffset="500"
+      d="M 60 0 C 70 80, 100 140, 120 200 C 140 250, 150 290, 170 330"/>
+
+    <!-- Bottom-right tendril cluster -->
+    <path class="tendril tendril-4"
+      stroke-dasharray="700" stroke-dashoffset="700"
+      d="M 1440 720 C 1380 710, 1320 690, 1270 660 C 1220 630, 1190 590, 1160 560 C 1135 535, 1110 510, 1090 480"/>
+    <path class="tendril tendril-5"
+      stroke-dasharray="550" stroke-dashoffset="550"
+      d="M 1440 800 C 1370 790, 1310 760, 1260 730 C 1215 705, 1190 670, 1170 640"/>
+  </svg>
+
+  <div class="glow-neon"></div>
+  <div class="glow-viral"></div>
+
+  <div class="hero-inner">
+    <p class="eyebrow">Deckbuilding Roguelike &nbsp;·&nbsp; Post-Apocalyptic Cyberpunk &nbsp;·&nbsp; Coming to Steam</p>
+
+    <h1 class="title">
+      <span class="title-neon">NEON</span>
+      <span class="title-viral">NECROSIS</span>
+    </h1>
+
+    <p class="tagline">
+      P.A.R.A.G.O.N. didn't destroy the city. It optimized it.<br/>
+      Build your deck. Fight what's left. End the experiment.<br/>
+      How much of yourself can you keep along the way?
+    </p>
+
+    <div class="genre-tags">
+      <span class="tag tag-viral">Deckbuilder</span>
+      <span class="tag">Roguelike</span>
+      <span class="tag tag-neon">Post-Apocalyptic</span>
+      <span class="tag">Turn-Based Combat</span>
+      <span class="tag tag-viral">Hand-Drawn Art</span>
+    </div>
+
+    <div class="cta-group">
+      <a href="YOUR_DISCORD_LINK" class="btn-primary">Join the Community</a>
+      <a href="#world" class="btn-secondary">Enter the City</a>
+    </div>
+  </div>
+
+  <div class="hero-rule"></div>
+</section>
+
+<!-- ── PITCH ── -->
+<section class="pitch" id="about">
+  <div class="pitch-headline">
+    <span class="section-label">// what you're getting into</span>
+    <h2>Three Games Made One</h2>
+  </div>
+
+  <div class="pitch-block">
+    <p>
+      The <span class="accent-viral">deckbuilding</span> of <strong>Slay the Spire</strong> — 
+      where every card you draft is a decision and every run reshapes your strategy from the ground up.
+      Synergies that reward obsession. Builds that feel like discoveries.
+    </p>
+  </div>
+
+  <div class="pitch-block">
+    <p>
+      The <span class="accent-neon">combat tension</span> of <strong>Darkest Dungeon</strong> — 
+      stress, positioning, and the creeping knowledge that the next fight might be the one that breaks you. 
+      Enemies that feel genuinely dangerous.
+    </p>
+  </div>
+
+  <div class="pitch-block">
+    <p>
+      The <span class="accent-viral">storytelling</span> of <strong>Hades</strong> — 
+      a world that deepens across runs, characters who remember you, and a narrative that rewards 
+      dying as much as surviving. The city has a history. You'll piece it together.
+    </p>
+  </div>
+
+  <div class="pitch-block">
+    <p>
+      Set in a <span class="accent-neon">Cyberpunk 2077</span> megalopolis overrun by something 
+      that turns the dead into infrastructure. Rendered in hand-drawn art that fuses 
+      <strong>Darkest Dungeon's</strong> rotting expressionism with <strong>Streets of Rage's</strong> 
+      neon-soaked urban grime.
+    </p>
+  </div>
+</section>
+
+<!-- ── PILLARS ── -->
+<div class="pillars">
+  <div class="pillars-inner">
+    <span class="pillars-label">// core systems</span>
+    <div class="pillars-grid">
+
+      <div class="pillar">
+        <div class="pillar-accent pillar-accent-viral"></div>
+        <div class="pillar-ref">Inspired by: Slay the Spire</div>
+        <h3>Build Your Deck</h3>
+        <p>Draft cards across every run. Corrupt them, combine them, lose them. No two decks survive the same way.</p>
+      </div>
+
+      <div class="pillar">
+        <div class="pillar-accent pillar-accent-neon"></div>
+        <div class="pillar-ref">Inspired by: Darkest Dungeon</div>
+        <h3>Feel the Pressure</h3>
+        <p>Combat is positional and punishing. Stress accumulates. The city wants you broken before it wants you dead.</p>
+      </div>
+
+      <div class="pillar">
+        <div class="pillar-accent pillar-accent-viral"></div>
+        <div class="pillar-ref">Inspired by: Hades</div>
+        <h3>Die With Purpose</h3>
+        <p>Each run reveals more of what destroyed Sun Coast City. Death is not failure — it's intelligence.</p>
+      </div>
+
+      <div class="pillar">
+        <div class="pillar-accent pillar-accent-neon"></div>
+        <div class="pillar-ref">Hand-Drawn</div>
+        <h3>A World That Looks Broken</h3>
+        <p>Every card rendered by hand. Decayed neon. Organic horror. Architecture that used to mean something.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ── WORLD ── -->
+<section class="world" id="world">
+  <span class="section-label">// sun coast city</span>
+  <h2>The <em>Neon</em> Is Still On.<br/>No One's Left To Turn It Off.</h2>
+
+  <div class="world-divider"></div>
+
+  <p>
+    Sun Coast City was a monument to corporate ambition — towers of glass and signal, 
+    a population of millions wired into a system that promised everything and delivered enough 
+    to keep them quiet. Then the corporations left. Then the power started going out in sectors. 
+    Then the dead stopped staying dead.
+  </p>
+  <p>
+    Something is using the city's infrastructure — its fiber lines, its drainage systems, 
+    its old transit tunnels — to spread. It doesn't think. It builds. And what it builds 
+    looks disturbingly intentional.
+  </p>
+  <p>
+    You are one of the last people running. Every card you play, every run you survive, 
+    pulls you deeper into what the city has become — and closer to understanding 
+    what it's trying to become next.
+  </p>
+</section>
+
+<!-- ── COMMUNITY ── -->
+<section class="community">
+  <div class="community-inner">
+    <span class="section-label">// early access</span>
+    <h2>Get In Before the Collapse</h2>
+    <p>
+      Neon Necrosis is in active development. Join the Discord to follow the build in real time, 
+      apply for closed alpha testing, and help shape the game before it ships.
+    </p>
+    <a href="YOUR_DISCORD_LINK" class="btn-primary">Join the Discord</a>
+    <p class="steam-soon">Steam Wishlist — <span>Coming Soon</span></p>
+  </div>
+</section>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="social-links">
+    <a href="YOUR_TWITTER_LINK">X / Twitter</a>
+    <a href="YOUR_TIKTOK_LINK">TikTok</a>
+    <a href="YOUR_DISCORD_LINK">Discord</a>
+  </div>
+  <p class="copyright">&copy; 2026 Neon Necrosis. All rights reserved.</p>
+</footer>
+
+</body>
+</html>
